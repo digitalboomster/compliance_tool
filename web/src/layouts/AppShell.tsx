@@ -1,11 +1,13 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Bell, FileSearch, LayoutGrid, LogOut, ScrollText, Settings } from 'lucide-react'
+import { AlertTriangle, FileSearch, LayoutGrid, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { GlobalCaseSearch } from '../components/GlobalCaseSearch'
+import { NotificationsMenu } from '../components/NotificationsMenu'
 
 const nav = [
   { to: '/', icon: LayoutGrid, label: 'Queue', end: true },
   { to: '/customers', icon: FileSearch, label: 'Customers' },
-  { to: '/reports', icon: ScrollText, label: 'Reports' },
+  { to: '/reports', icon: AlertTriangle, label: 'Incidents' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
@@ -58,7 +60,7 @@ export function AppShell() {
           ))}
         </nav>
         <p className="mt-auto max-w-[3rem] text-center text-[0.6rem] font-medium uppercase tracking-wider text-on-variant">
-          v0.1
+          v0.2
         </p>
       </aside>
 
@@ -68,26 +70,9 @@ export function AppShell() {
             <p className="text-xs font-medium uppercase tracking-[0.08em] text-on-variant">Savvy Bee</p>
             <h1 className="text-lg font-semibold tracking-tight text-on-surface">Compliance OS</h1>
           </div>
-          <div className="mx-auto max-w-xl flex-1 px-4">
-            <label className="sr-only" htmlFor="global-search">
-              Search cases
-            </label>
-            <input
-              id="global-search"
-              type="search"
-              placeholder="Search case ID, customer, or entity…"
-              className="w-full rounded-md bg-surface-float px-4 py-2.5 text-sm text-on-surface shadow-[inset_0_0_0_1px_rgba(20,27,43,0.08)] placeholder:text-on-variant/70"
-            />
-          </div>
+          <GlobalCaseSearch />
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="relative rounded-lg p-2 text-on-variant hover:bg-surface-low"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5" strokeWidth={1.75} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-attention" />
-            </button>
+            <NotificationsMenu />
             <div className="flex items-center gap-3 rounded-xl bg-surface-low px-3 py-2">
               <div className="h-9 w-9 rounded-full bg-surface-high" aria-hidden />
               <div className="text-left text-sm">

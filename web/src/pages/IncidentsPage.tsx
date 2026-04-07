@@ -24,6 +24,7 @@ const categories = [
 
 export function IncidentsPage() {
   const [rows, setRows] = useState<Incident[]>([])
+  const [loading, setLoading] = useState(true)
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<(typeof categories)[number]>('API_INTEGRATION')
   const [desc, setDesc] = useState('')
@@ -35,6 +36,8 @@ export function IncidentsPage() {
 
   useEffect(() => {
     refresh()
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false))
   }, [])
 
   async function create(e: React.FormEvent) {
@@ -54,6 +57,10 @@ export function IncidentsPage() {
       body: JSON.stringify({ status: 'RESOLVED' }),
     })
     await refresh()
+  }
+
+  if (loading) {
+    return <p className="text-on-variant">Loading incidents…</p>
   }
 
   return (

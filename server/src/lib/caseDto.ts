@@ -82,6 +82,7 @@ export function formatCase(
       size: formatBytes(d.sizeBytes),
     })),
     checks: c.checks.map((k) => ({
+      id: k.id,
       name: k.name,
       state: checkStateClient(k.state) as 'passed' | 'review' | 'failed',
       detail: k.detail ?? undefined,

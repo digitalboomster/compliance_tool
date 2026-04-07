@@ -11,7 +11,7 @@ export interface CaseDto {
   phoneMasked?: string
   application?: string
   documents: { id: string; name: string; date: string; size: string }[]
-  checks: { name: string; state: 'passed' | 'review' | 'failed'; detail?: string }[]
+  checks: { id: string; name: string; state: 'passed' | 'review' | 'failed'; detail?: string }[]
   timeline: { at: string; actor: string; text: string }[]
   riskFactors: { label: string; level: string; highlight?: boolean }[]
 }

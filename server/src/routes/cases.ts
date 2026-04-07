@@ -1,36 +1,17 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
-import path from 'node:path'
-import fs from 'node:fs'
-import { randomUUID } from 'node:crypto'
 import { prisma } from '../prisma.js'
 import { writeAudit } from '../lib/audit.js'
+import { saveUploadedFile, sendDocumentFile, uploadsConfigured } from '../lib/documentStorage.js'
 import type { AuthedRequest } from '../middleware/requireAuth.js'
 import { requireAuth } from '../middleware/requireAuth.js'
 import { formatCase } from '../lib/caseDto.js'
 import { pathParam } from '../lib/params.js'
 import type { CaseStatus, DecisionType } from '@prisma/client'
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads')
-
-function ensureUploadDir() {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    ensureUploadDir()
-    cb(null, UPLOAD_DIR)
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.bin'
-    cb(null, `${randomUUID()}${ext}`)
-  },
-})
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
 })
 
@@ -38,7 +19,7 @@ export const casesRouter = Router()
 casesRouter.use(requireAuth)
 
 /** Stub: plug ClamAV or cloud AV in production (spec 1.1). */
-async function runVirusScan(_filePath: string): Promise<'CLEAN' | 'REJECTED'> {
+async function runVirusScan(_buffer: Buffer): Promise<'CLEAN' | 'REJECTED'> {
   return 'CLEAN'
 }
 
@@ -101,6 +82,96 @@ casesRouter.post('/:publicId/assign', async (req: AuthedRequest, res) => {
     entityType: 'ComplianceCase',
     entityId: c.publicId,
     details: { assigneeId: req.user!.id },
+    req,
+  })
+  res.json({ ok: true })
+})
+
+casesRouter.post('/:publicId/escalate', async (req: AuthedRequest, res) => {
+  const publicId = pathParam(req.params.publicId)
+  const c = await prisma.complianceCase.findUnique({ where: { publicId } })
+  if (!c) {
+    res.status(404).json({ error: 'Case not found' })
+    return
+  }
+  if (c.status === 'APPROVED' || c.status === 'REJECTED') {
+    res.status(400).json({ error: 'Case is closed' })
+    return
+  }
+  await prisma.complianceCase.update({
+    where: { id: c.id },
+    data: { status: 'ESCALATED' },
+  })
+  await prisma.caseTimelineEvent.create({
+    data: {
+      caseId: c.id,
+      actorType: 'USER',
+      actorUserId: req.user!.id,
+      text: 'Case escalated for senior review.',
+    },
+  })
+  await writeAudit({
+    actorUserId: req.user!.id,
+    action: 'CASE_ESCALATED',
+    entityType: 'ComplianceCase',
+    entityId: c.publicId,
+    req,
+  })
+  res.json({ ok: true })
+})
+
+const checkPatchSchema = z.object({
+  state: z.enum(['PASSED', 'REVIEW', 'FAILED']),
+})
+
+casesRouter.patch('/:publicId/checks/:checkId', async (req: AuthedRequest, res) => {
+  const parsed = checkPatchSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid body' })
+    return
+  }
+  const publicId = pathParam(req.params.publicId)
+  const checkId = pathParam(req.params.checkId)
+  const c = await prisma.complianceCase.findUnique({ where: { publicId } })
+  if (!c) {
+    res.status(404).json({ error: 'Case not found' })
+    return
+  }
+  if (c.status === 'APPROVED' || c.status === 'REJECTED') {
+    res.status(400).json({ error: 'Case is closed' })
+    return
+  }
+  const check = await prisma.caseCheck.findFirst({
+    where: { id: checkId, caseId: c.id },
+  })
+  if (!check) {
+    res.status(404).json({ error: 'Check not found' })
+    return
+  }
+  await prisma.caseCheck.update({
+    where: { id: check.id },
+    data: { state: parsed.data.state },
+  })
+  const stateLabel =
+    parsed.data.state === 'PASSED'
+      ? 'cleared as passed (false positive)'
+      : parsed.data.state === 'FAILED'
+        ? 'marked failed'
+        : 'marked for review'
+  await prisma.caseTimelineEvent.create({
+    data: {
+      caseId: c.id,
+      actorType: 'USER',
+      actorUserId: req.user!.id,
+      text: `Check "${check.name}" ${stateLabel}.`,
+    },
+  })
+  await writeAudit({
+    actorUserId: req.user!.id,
+    action: 'CASE_CHECK_UPDATED',
+    entityType: 'ComplianceCase',
+    entityId: c.publicId,
+    details: { checkId: check.id, checkName: check.name, state: parsed.data.state },
     req,
   })
   res.json({ ok: true })
@@ -219,6 +290,13 @@ casesRouter.post('/:publicId/decisions', async (req: AuthedRequest, res) => {
 })
 
 casesRouter.post('/:publicId/documents', upload.single('file'), async (req: AuthedRequest, res) => {
+  if (!uploadsConfigured()) {
+    res.status(503).json({
+      error:
+        'File uploads on Vercel require BLOB_READ_WRITE_TOKEN (Vercel Blob). Add it in Project → Environment Variables.',
+    })
+    return
+  }
   const publicId = pathParam(req.params.publicId)
   const c = await prisma.complianceCase.findUnique({ where: { publicId } })
   if (!c) {
@@ -226,27 +304,31 @@ casesRouter.post('/:publicId/documents', upload.single('file'), async (req: Auth
     return
   }
   const file = req.file
-  if (!file) {
+  if (!file?.buffer) {
     res.status(400).json({ error: 'file field required' })
     return
   }
-  const scan = await runVirusScan(file.path)
+  const scan = await runVirusScan(file.buffer)
+  if (scan !== 'CLEAN') {
+    res.status(400).json({ error: 'File failed virus scan' })
+    return
+  }
+  const { storageKey } = await saveUploadedFile({
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    buffer: file.buffer,
+  })
   const doc = await prisma.caseDocument.create({
     data: {
       caseId: c.id,
       originalFilename: file.originalname,
       mimeType: file.mimetype,
       sizeBytes: file.size,
-      storageKey: file.filename,
-      virusScanStatus: scan === 'CLEAN' ? 'CLEAN' : 'REJECTED',
+      storageKey,
+      virusScanStatus: 'CLEAN',
       uploadedByUserId: req.user!.id,
     },
   })
-  if (scan !== 'CLEAN') {
-    fs.unlinkSync(file.path)
-    res.status(400).json({ error: 'File failed virus scan' })
-    return
-  }
   await prisma.caseTimelineEvent.create({
     data: {
       caseId: c.id,
@@ -284,11 +366,6 @@ casesRouter.get('/:publicId/documents/:docId/download', async (req: AuthedReques
     res.status(404).json({ error: 'Document not found' })
     return
   }
-  const fp = path.join(UPLOAD_DIR, doc.storageKey)
-  if (!fs.existsSync(fp)) {
-    res.status(404).json({ error: 'File missing on disk' })
-    return
-  }
   await writeAudit({
     actorUserId: req.user!.id,
     action: 'CASE_DOCUMENT_DOWNLOADED',
@@ -297,7 +374,7 @@ casesRouter.get('/:publicId/documents/:docId/download', async (req: AuthedReques
     details: { documentId: doc.id, filename: doc.originalFilename },
     req,
   })
-  res.download(fp, doc.originalFilename)
+  sendDocumentFile(doc, res)
 })
 
 casesRouter.get('/:publicId/audit', async (req: AuthedRequest, res) => {

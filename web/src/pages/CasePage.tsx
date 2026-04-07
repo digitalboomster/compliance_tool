@@ -70,6 +70,21 @@ export function CasePage() {
     await load()
   }
 
+  async function escalateCase() {
+    if (!c) return
+    await apiJson(`/api/cases/${encodeURIComponent(c.id)}/escalate`, { method: 'POST', body: '{}' })
+    await load()
+  }
+
+  async function patchCheck(checkId: string, state: 'PASSED' | 'REVIEW' | 'FAILED') {
+    if (!c) return
+    await apiJson(`/api/cases/${encodeURIComponent(c.id)}/checks/${encodeURIComponent(checkId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ state }),
+    })
+    await load()
+  }
+
   async function approve() {
     if (!c) return
     await apiJson(`/api/cases/${encodeURIComponent(c.id)}/decisions`, {
@@ -176,10 +191,11 @@ export function CasePage() {
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            disabled={closed}
+            disabled={closed || c.status === 'escalated'}
+            onClick={escalateCase}
             className="rounded-md bg-surface-float px-4 py-2.5 text-sm font-medium text-on-surface shadow-[inset_0_0_0_1px_rgba(20,27,43,0.12)] hover:bg-surface-high/50 disabled:opacity-50"
           >
-            Escalate
+            {c.status === 'escalated' ? 'Escalated' : 'Escalate'}
           </button>
           <button
             type="button"
@@ -265,7 +281,7 @@ export function CasePage() {
                 <ul className="space-y-4">
                   {c.checks.map((check) => (
                     <li
-                      key={check.name}
+                      key={check.id}
                       className="rounded-xl bg-surface-float/90 p-4 shadow-[inset_0_0_0_1px_rgba(20,27,43,0.06)]"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -293,12 +309,14 @@ export function CasePage() {
                         <div className="mt-4 flex flex-wrap gap-2">
                           <button
                             type="button"
+                            onClick={() => patchCheck(check.id, 'PASSED')}
                             className="rounded-md bg-success/15 px-3 py-1.5 text-xs font-medium text-success hover:bg-success/25"
                           >
                             Mark false positive
                           </button>
                           <button
                             type="button"
+                            onClick={escalateCase}
                             className="rounded-md bg-surface-high px-3 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-high/80"
                           >
                             Escalate to senior
@@ -403,13 +421,14 @@ export function CasePage() {
             </ul>
           </div>
 
-          <div className="rounded-2xl bg-surface-low/80 p-5">
+          <div id="case-customer-profile" className="scroll-mt-28 rounded-2xl bg-surface-low/80 p-5">
             <p className="text-sm font-medium text-on-surface">{c.customer}</p>
             {c.country && <p className="mt-1 text-xs text-on-variant">{c.country}</p>}
             {c.phoneMasked && <p className="text-xs text-on-variant">{c.phoneMasked}</p>}
-            <button type="button" className="mt-4 text-sm font-medium text-primary hover:underline">
-              View full profile
-            </button>
+            {c.application && <p className="mt-3 text-xs leading-relaxed text-on-variant">{c.application}</p>}
+            <p className="mt-4 text-xs text-on-variant">
+              Full KYC profile integration is planned; this panel shows the data stored on the case record.
+            </p>
           </div>
         </div>
       </div>

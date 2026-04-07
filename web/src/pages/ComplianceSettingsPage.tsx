@@ -3,7 +3,14 @@ import { apiJson } from '../api/client'
 
 type Vendor = { id: string; name: string; contactEmail: string | null; notes: string | null }
 type Consent = { id: string; subjectRef: string; purpose: string; version: string; withdrawnAt: string | null }
-type Dsar = { id: string; type: string; status: string; subjectRef: string; createdAt: string }
+type Dsar = {
+  id: string
+  type: string
+  status: string
+  subjectRef: string
+  createdAt: string
+  responseNote?: string | null
+}
 
 export function ComplianceSettingsPage() {
   const [tab, setTab] = useState<'vendors' | 'consents' | 'dsar'>('vendors')
@@ -205,8 +212,47 @@ export function ComplianceSettingsPage() {
           </form>
           <ul className="space-y-2 text-sm">
             {dsars.map((d) => (
-              <li key={d.id} className="rounded-lg bg-surface-low/60 px-4 py-3">
-                {d.type} · {d.subjectRef} · <span className="text-on-variant">{d.status}</span>
+              <li
+                key={d.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-low/60 px-4 py-3"
+              >
+                <div>
+                  <span className="font-medium text-on-surface">{d.type}</span>
+                  <span className="text-on-variant"> · {d.subjectRef}</span>
+                  <p className="mt-1 text-xs text-on-variant">Status: {d.status.replace(/_/g, ' ')}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {d.status === 'RECEIVED' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await apiJson(`/api/dsar/${d.id}`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({ status: 'IN_PROGRESS' }),
+                        })
+                        await load()
+                      }}
+                      className="rounded-md bg-primary/15 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/25"
+                    >
+                      Start work
+                    </button>
+                  )}
+                  {d.status === 'IN_PROGRESS' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await apiJson(`/api/dsar/${d.id}`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({ status: 'COMPLETED' }),
+                        })
+                        await load()
+                      }}
+                      className="rounded-md bg-success/15 px-3 py-1.5 text-xs font-medium text-success hover:bg-success/25"
+                    >
+                      Mark complete
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

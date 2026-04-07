@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiJson } from '../api/client'
 import type { CaseDto, QueueSummary } from '../types/api'
@@ -25,6 +25,8 @@ export function QueuePage() {
   const [cases, setCases] = useState<CaseDto[] | null>(null)
   const [summary, setSummary] = useState<QueueSummary | null>(null)
   const [error, setError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [riskFilter, setRiskFilter] = useState('all')
 
   useEffect(() => {
     let cancelled = false
@@ -46,6 +48,15 @@ export function QueuePage() {
       cancelled = true
     }
   }, [])
+
+  const filteredCases = useMemo(() => {
+    if (!cases) return []
+    return cases.filter((row) => {
+      if (statusFilter !== 'all' && row.status !== statusFilter) return false
+      if (riskFilter !== 'all' && row.risk !== riskFilter) return false
+      return true
+    })
+  }, [cases, statusFilter, riskFilter])
 
   if (error) {
     return (
@@ -104,7 +115,8 @@ export function QueuePage() {
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <select
           className="rounded-md bg-surface-float px-3 py-2 text-sm shadow-[inset_0_0_0_1px_rgba(20,27,43,0.08)]"
-          defaultValue="all"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
           aria-label="Filter by status"
         >
           <option value="all">Status: All</option>
@@ -114,7 +126,8 @@ export function QueuePage() {
         </select>
         <select
           className="rounded-md bg-surface-float px-3 py-2 text-sm shadow-[inset_0_0_0_1px_rgba(20,27,43,0.08)]"
-          defaultValue="all"
+          value={riskFilter}
+          onChange={(e) => setRiskFilter(e.target.value)}
           aria-label="Filter by risk"
         >
           <option value="all">Risk: All</option>
@@ -122,12 +135,9 @@ export function QueuePage() {
           <option value="medium">Medium</option>
           <option value="high">High</option>
         </select>
-        <button
-          type="button"
-          className="rounded-md bg-gradient-to-br from-primary to-primary-mid px-4 py-2 text-sm font-medium text-white shadow-[0_12px_32px_rgba(43,75,185,0.25)]"
-        >
-          Apply filters
-        </button>
+        <span className="text-sm text-on-variant">
+          Showing {filteredCases.length} of {cases.length}
+        </span>
       </div>
 
       <div className="rounded-2xl bg-surface-float/80 p-2 shadow-[0_12px_32px_rgba(20,27,43,0.04)]">
@@ -146,7 +156,7 @@ export function QueuePage() {
               </tr>
             </thead>
             <tbody>
-              {cases.map((row, idx) => (
+              {filteredCases.map((row, idx) => (
                 <tr
                   key={row.id}
                   className={
@@ -197,6 +207,9 @@ export function QueuePage() {
               ))}
             </tbody>
           </table>
+          {filteredCases.length === 0 && (
+            <p className="p-8 text-center text-sm text-on-variant">No cases match these filters.</p>
+          )}
         </div>
       </div>
     </div>
