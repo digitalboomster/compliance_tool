@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiJson } from '../api/client'
+import { apiJson, isMockApiEnabled } from '../api/client'
 import type { CaseDto, QueueSummary } from '../types/api'
 import { Sparkline } from '../components/Sparkline'
 
@@ -62,7 +62,11 @@ export function QueuePage() {
     return (
       <div className="rounded-2xl bg-destructive/10 px-6 py-8 text-center text-destructive">
         {error}
-        <p className="mt-2 text-sm text-on-variant">Is the API running on port 3000?</p>
+        <p className="mt-2 text-sm text-on-variant">
+          {isMockApiEnabled()
+            ? 'Unexpected error in mock demo mode.'
+            : 'Is the API running (and is VITE_USE_REAL_API=true configured correctly)?'}
+        </p>
       </div>
     )
   }

@@ -1,4 +1,6 @@
-const TOKEN_KEY = 'savvybee_compliance_token'
+import { isMockApiEnabled, mockFetch } from '../mocks/mockApi'
+
+export { isMockApiEnabled } from '../mocks/mockApi'
 
 /** Production API origin (set in Vercel: VITE_API_URL). Dev: empty → same-origin /api via Vite proxy. */
 function apiUrl(path: string): string {
@@ -9,17 +11,20 @@ function apiUrl(path: string): string {
 
 /** Legacy token cleared on load (login removed). */
 export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem('savvybee_compliance_token')
 }
 
 export type ApiError = { error: string; details?: unknown }
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const url = apiUrl(path)
+  if (isMockApiEnabled()) {
+    return mockFetch(url, init)
+  }
   const headers = new Headers(init.headers)
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
-  const url = apiUrl(path)
   return fetch(url, { ...init, headers })
 }
 

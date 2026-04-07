@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { AlertTriangle, FileSearch, LayoutGrid, Settings } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { isMockApiEnabled } from '../api/client'
 import { GlobalCaseSearch } from '../components/GlobalCaseSearch'
 import { NotificationsMenu } from '../components/NotificationsMenu'
 
@@ -63,6 +64,11 @@ export function AppShell() {
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.08em] text-on-variant">Savvy Bee</p>
             <h1 className="text-lg font-semibold tracking-tight text-on-surface">Compliance OS</h1>
+            {isMockApiEnabled() && (
+              <p className="mt-0.5 text-[0.65rem] font-medium uppercase tracking-wider text-attention">
+                Mock MVP · no database
+              </p>
+            )}
           </div>
           <GlobalCaseSearch />
           <div className="flex items-center gap-4">

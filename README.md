@@ -16,13 +16,23 @@ Document uploads on Vercel use [Vercel Blob](https://vercel.com/docs/storage/ver
 
 ## Run locally
 
-**1. Postgres**
+### Mock MVP (default — no Postgres, no API server)
 
-From the repo root:
+The web app ships with an **in-browser mock API** (sample cases, incidents, KYC, settings). By default **nothing talks to a database**.
 
 ```bash
-docker compose up -d
+cd web
+npm install
+npm run dev
 ```
+
+Open `http://localhost:5173`. You should see **“Mock MVP · no database”** in the header.
+
+To use the **real** Express API instead, create `web/.env` with `VITE_USE_REAL_API=true` and run the server (below); Vite will proxy `/api` to port 3000.
+
+### Full stack (Postgres + API)
+
+**1. Postgres** — from repo root: `docker compose up -d`
 
 **2. API**
 
@@ -35,17 +45,9 @@ npx prisma db seed
 npm run dev
 ```
 
-There is **no sign-in screen**: the API uses the **first user** in the database (by creation time) as the actor for all requests. Seed creates `officer@savvybee.internal` first so that account is used for audit trails and assignments.
+There is **no sign-in screen**: the API uses the **first user** in the database (by creation time) as the actor for all requests.
 
-**3. Web**
-
-```bash
-cd web
-npm install
-npm run dev
-```
-
-Open `http://localhost:5173`. The Vite dev server proxies `/api` to `http://localhost:3000`.
+**3. Web** — `cd web`, add `VITE_USE_REAL_API=true` in `.env`, `npm run dev`. The Vite dev server proxies `/api` to `http://localhost:3000`.
 
 ## Deploy on Vercel (web + API together)
 
