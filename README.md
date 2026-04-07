@@ -37,6 +37,22 @@ npm run dev
 
 Open `http://localhost:5173`. The Vite dev server proxies `/api` to `http://localhost:3000`.
 
+## Deploy frontend on Vercel
+
+The **API is not on Vercel** in this setup (Express + SQLite/Postgres + file uploads fit better on Railway, Render, Fly.io, etc.). Vercel hosts the **static SPA** only.
+
+1. Push this repo to GitHub (already: [digitalboomster/compliance_tool](https://github.com/digitalboomster/compliance_tool)).
+2. In [Vercel](https://vercel.com) → **Add New Project** → import **`compliance_tool`**.
+3. Set **Root Directory** to **`web`** (important).
+4. Framework: **Vite** (auto). Build: `npm run build`, output: **`dist`**.
+5. **Environment variables** (Production + Preview):
+   - **`VITE_API_URL`** = your deployed API base URL, **no trailing slash**  
+     Example: `https://your-api.railway.app`  
+     The browser will call `https://your-api.railway.app/api/...`.
+6. On the **API server**, set **`CORS_ORIGIN`** to your Vercel URL(s), e.g. `https://compliance-tool.vercel.app` (comma-separate multiple origins if needed — you may need a small server change to split; for one URL it works today).
+
+`web/vercel.json` adds SPA rewrites so React Router routes load correctly.
+
 ## What works today
 
 - **Auth** (JWT), **audit log** on sensitive actions.

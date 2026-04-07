@@ -1,5 +1,12 @@
 const TOKEN_KEY = 'savvybee_compliance_token'
 
+/** Production API origin (set in Vercel: VITE_API_URL). Dev: empty → same-origin /api via Vite proxy. */
+function apiUrl(path: string): string {
+  const base = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
+  const p = path.startsWith('/') ? path : `/${path}`
+  return base ? `${base}${p}` : p
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -28,8 +35,9 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
-  const res = await fetch(path, { ...init, headers })
-  if (res.status === 401 && !path.includes('/api/auth/login')) redirectLogin()
+  const url = apiUrl(path)
+  const res = await fetch(url, { ...init, headers })
+  if (res.status === 401 && !url.includes('/api/auth/login')) redirectLogin()
   return res
 }
 
