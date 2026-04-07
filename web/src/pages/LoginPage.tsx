@@ -19,8 +19,13 @@ export function LoginPage() {
     setPending(true)
     try {
       await login(email, password)
-    } catch {
-      setError('Invalid email or password.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(
+        msg === 'Invalid email or password'
+          ? 'Invalid email or password.'
+          : `Sign-in failed: ${msg}. New Vercel databases need migrations and seed — see README (prisma migrate deploy + prisma db seed).`,
+      )
     } finally {
       setPending(false)
     }

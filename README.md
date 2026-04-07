@@ -64,13 +64,21 @@ Deploy from the **repository root** (not `web/`). Root `vercel.json` builds the 
 
    Do **not** set `VITE_API_URL` for the default same-origin setup; the browser calls `/api/...` on your Vercel domain.
 
-5. After the first successful deploy, run migrations against the production database (one-off from your machine or CI), with `DATABASE_URL` pointing at production:
+5. **Before anyone can log in**, apply the schema and **seed demo users** against the **same** `DATABASE_URL` you set on Vercel (from your laptop or CI):
 
    ```bash
-   cd server && npx prisma migrate deploy
+   cd server
+   npm install
+   export DATABASE_URL="postgresql://..."   # your production Postgres URL
+   npm run db:deploy-and-seed
    ```
 
-   Then seed or create the first admin user as you prefer.
+   Default accounts after seed:
+
+   - `officer@savvybee.internal` / `ChangeMe!123`
+   - `admin@savvybee.internal` / `ChangeMe!123`
+
+   If you skip seeding, sign-in will always show **invalid email or password** because no users exist yet. The seed always **upserts** these two users (even when sample cases are skipped).
 
 **CORS:** With the SPA and API on the same origin, you normally do not need `CORS_ORIGIN`. If you ever split hosts, set `CORS_ORIGIN` to a comma-separated list of allowed web origins.
 

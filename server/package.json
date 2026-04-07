@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:deploy-and-seed": "prisma migrate deploy && prisma db seed"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
