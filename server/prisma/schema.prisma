@@ -1,0 +1,303 @@
+// Savvy Bee Limited — single-tenant compliance platform
+// Traceability: SB-COMP-SPEC-2026-001 (iRecharge SLA automated framework)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  COMPLIANCE_OFFICER
+  OPERATIONS
+}
+
+enum CaseStatus {
+  PENDING
+  IN_REVIEW
+  ESCALATED
+  APPROVED
+  REJECTED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum CheckState {
+  PASSED
+  REVIEW
+  FAILED
+}
+
+enum DecisionType {
+  APPROVE
+  REJECT
+  REQUEST_INFO
+}
+
+enum VirusScanStatus {
+  PENDING
+  CLEAN
+  REJECTED
+  ERROR
+}
+
+enum BusinessKycStatus {
+  DRAFT
+  PENDING_REVIEW
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum DsarType {
+  ACCESS
+  RECTIFICATION
+  ERASURE
+  PORTABILITY
+  OBJECTION
+}
+
+enum DsarStatus {
+  RECEIVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+enum IncidentCategory {
+  API_INTEGRATION
+  WALLET_DEBIT
+  WRONG_AIRTIME_DATA
+  WRONG_TV
+  TOKEN_ERROR
+  VALUE_MISMATCH
+  DOWNTIME
+  FUNDING
+  OTHER
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  ESCALATED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(COMPLIANCE_OFFICER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedCases   ComplianceCase[]     @relation("AssignedOfficer")
+  notes           CaseNote[]
+  decisions       CaseDecision[]
+  uploads         CaseDocument[]
+  auditLogs       AuditLog[]
+  timelineActions CaseTimelineEvent[]
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actorUser   User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action      String
+  entityType  String
+  entityId    String?
+  details     String? // JSON string for SQLite
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model ComplianceCase {
+  id                 String      @id @default(cuid())
+  publicId           String      @unique
+  type               String
+  risk               RiskLevel
+  status             CaseStatus  @default(PENDING)
+  customerName       String
+  customerRef        String?
+  country            String?
+  phoneMasked        String?
+  applicationSummary String?
+  openedAt           DateTime    @default(now())
+  slaDueAt           DateTime?
+  assignedOfficerId  String?
+  assignedOfficer    User?       @relation("AssignedOfficer", fields: [assignedOfficerId], references: [id])
+
+  checks      CaseCheck[]
+  timeline    CaseTimelineEvent[]
+  documents   CaseDocument[]
+  notes       CaseNote[]
+  decisions   CaseDecision[]
+  riskFactors CaseRiskFactor[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([risk])
+}
+
+model CaseCheck {
+  id      String     @id @default(cuid())
+  caseId  String
+  case    ComplianceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  name    String
+  state   CheckState
+  detail  String?
+
+  @@index([caseId])
+}
+
+model CaseTimelineEvent {
+  id          String   @id @default(cuid())
+  caseId      String
+  case        ComplianceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  at          DateTime @default(now())
+  actorType   String // SYSTEM | USER
+  actorUserId String?
+  actorUser   User?    @relation(fields: [actorUserId], references: [id])
+  text        String
+
+  @@index([caseId])
+}
+
+model CaseRiskFactor {
+  id        String @id @default(cuid())
+  caseId    String
+  case      ComplianceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  label     String
+  level     String
+  highlight Boolean @default(false)
+
+  @@index([caseId])
+}
+
+model CaseDocument {
+  id               String           @id @default(cuid())
+  caseId           String
+  case             ComplianceCase   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  storageKey       String           @unique
+  virusScanStatus  VirusScanStatus  @default(PENDING)
+  uploadedByUserId String?
+  uploader         User?            @relation(fields: [uploadedByUserId], references: [id])
+  createdAt        DateTime         @default(now())
+
+  @@index([caseId])
+}
+
+model CaseNote {
+  id          String   @id @default(cuid())
+  caseId      String
+  case        ComplianceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorUserId String
+  author      User     @relation(fields: [authorUserId], references: [id])
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([caseId])
+}
+
+model CaseDecision {
+  id            String       @id @default(cuid())
+  caseId        String
+  case          ComplianceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type          DecisionType
+  reasonCode    String?
+  detail        String?
+  decidedByUserId String
+  decider       User         @relation(fields: [decidedByUserId], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@index([caseId])
+}
+
+// Domain 1 — Business / company KYC (Savvy Bee as corporate customer of partners)
+model BusinessKycApplication {
+  id                String            @id @default(cuid())
+  businessName      String
+  rcNumber          String
+  physicalAddress   String
+  email             String
+  phone             String
+  websiteUrl        String?
+  natureOfBusiness  String
+  status            BusinessKycStatus @default(DRAFT)
+  repFullName       String?
+  repDateOfBirth    String? // ISO date string
+  repBvn            String?
+  repPhone          String?
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Domain 3 — NDPR / NDPA consent & data subject rights
+model ConsentRecord {
+  id          String    @id @default(cuid())
+  subjectRef  String // internal ref or hashed id — not raw PII in logs
+  purpose     String
+  version     String
+  grantedAt   DateTime  @default(now())
+  withdrawnAt DateTime?
+  channel     String? // app, web, api
+}
+
+model DataSubjectRequest {
+  id          String      @id @default(cuid())
+  type        DsarType
+  status      DsarStatus  @default(RECEIVED)
+  subjectRef  String
+  requestBody String? // JSON
+  responseNote String?
+  createdAt   DateTime    @default(now())
+  completedAt DateTime?
+}
+
+// Domain 3 — Processor register (spec 3.3)
+model VendorProcessor {
+  id               String    @id @default(cuid())
+  name             String
+  contactEmail     String?
+  dpaSignedAt      DateTime?
+  lastQuestionnaireAt DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// Domain 5 — Incident / escalation matrix (spec 5.3)
+model IncidentTicket {
+  id          String           @id @default(cuid())
+  reference   String           @unique
+  category    IncidentCategory
+  status      IncidentStatus   @default(OPEN)
+  title       String
+  description String?
+  responseSlaDueAt DateTime?
+  resolveDueAt     DateTime?
+  openedByUserId   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  resolvedAt  DateTime?
+}

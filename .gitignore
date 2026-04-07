@@ -1,0 +1,23 @@
+# Dependencies & build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+
+# Database & uploads (local dev)
+server/dev.db
+server/dev.db-journal
+server/uploads/
+
+# OS & IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*

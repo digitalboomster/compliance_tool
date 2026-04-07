@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-surface: #f9f9ff;
+  --color-surface-low: #f1f3ff;
+  --color-surface-high: #dce2f7;
+  --color-surface-float: #ffffff;
+  --color-on-surface: #141b2b;
+  --color-on-variant: #434655;
+  --color-primary: #2b4bb9;
+  --color-primary-mid: #4865d3;
+  --color-attention: #c2410c;
+  --color-success: #0d9488;
+  --color-destructive: #b91c1c;
+}
+
+html {
+  font-family: var(--font-sans);
+  color: var(--color-on-surface);
+  background-color: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus rings: primary + soft glow */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
