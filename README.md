@@ -76,6 +76,8 @@ Deploy from the **repository root** (not `web/`). Root `vercel.json` builds the 
 
 **404 after deploy:** Confirm **Root Directory** is the repo root (see above). Smoke-test the API with `curl https://<your-project>.vercel.app/api/health` — expect JSON `{"ok":true,...}`. If that 404s, the function bundle did not deploy (wrong root or failed build).
 
+**Function size (250 MB limit):** Do not set `includeFiles` to all of `server/**` — that copies every file under `server/node_modules` and blows past Vercel’s limit. This repo relies on Vercel’s file tracing from `api/index.ts` into `server/dist` and resolved dependencies. If Prisma fails at runtime with a missing engine error, add a **narrow** `includeFiles` glob for `server/node_modules/.prisma/**` only (in `vercel.json`), not the whole server tree.
+
 ## What works today
 
 - **Auth** (JWT), **audit log** on sensitive actions.
