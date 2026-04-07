@@ -35,7 +35,7 @@ npx prisma db seed
 npm run dev
 ```
 
-Default login after seed: `officer@savvybee.internal` / `ChangeMe!123`
+There is **no sign-in screen**: the API uses the **first user** in the database (by creation time) as the actor for all requests. Seed creates `officer@savvybee.internal` first so that account is used for audit trails and assignments.
 
 **3. Web**
 
@@ -59,12 +59,12 @@ Deploy from the **repository root** (not `web/`). Root `vercel.json` builds the 
    | Variable | Purpose |
    |----------|---------|
    | `DATABASE_URL` | PostgreSQL connection string (e.g. [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres), Neon, Supabase). |
-   | `JWT_SECRET` | Long random string for signing JWTs. |
+   | `JWT_SECRET` | Any non-empty string (optional Bearer JWT verification only; app does not use login). |
    | `BLOB_READ_WRITE_TOKEN` | From Vercel Blob — **required** for case document upload/download on Vercel. |
 
    Do **not** set `VITE_API_URL` for the default same-origin setup; the browser calls `/api/...` on your Vercel domain.
 
-5. **Before anyone can log in**, apply the schema and **seed demo users** against the **same** `DATABASE_URL` you set on Vercel (from your laptop or CI):
+5. **Before the app can use the API**, apply the schema and **seed** (creates users and sample data) against the **same** `DATABASE_URL` as Vercel:
 
    ```bash
    cd server
@@ -73,12 +73,7 @@ Deploy from the **repository root** (not `web/`). Root `vercel.json` builds the 
    npm run db:deploy-and-seed
    ```
 
-   Default accounts after seed:
-
-   - `officer@savvybee.internal` / `ChangeMe!123`
-   - `admin@savvybee.internal` / `ChangeMe!123`
-
-   If you skip seeding, sign-in will always show **invalid email or password** because no users exist yet. The seed always **upserts** these two users (even when sample cases are skipped).
+   Without at least one user, protected routes return **503**. The seed **upserts** `officer@savvybee.internal` and `admin@savvybee.internal` (that officer is the default actor because it is created first).
 
 **CORS:** With the SPA and API on the same origin, you normally do not need `CORS_ORIGIN`. If you ever split hosts, set `CORS_ORIGIN` to a comma-separated list of allowed web origins.
 
@@ -88,7 +83,7 @@ Deploy from the **repository root** (not `web/`). Root `vercel.json` builds the 
 
 ## What works today
 
-- **Auth** (JWT), **audit log** on sensitive actions.
+- **No login UI** — API acts as the first seeded user; **audit log** on sensitive actions.
 - **Compliance cases** (queue, detail, notes, assign, approve / reject / request info, document upload + download, virus-scan hook stub).
 - **Queue summary** stats from the database.
 - **Business KYC** applications (draft + submit for review).
@@ -97,4 +92,4 @@ Deploy from the **repository root** (not `web/`). Root `vercel.json` builds the 
 
 ## Production hardening (next)
 
-- Secure `JWT_SECRET`; real AV (e.g. ClamAV) on upload; BVN/NIBSS and sanctions APIs; email notifications; NDPA retention jobs.
+- Re-enable proper authentication before any sensitive production use; real AV (e.g. ClamAV) on upload; BVN/NIBSS and sanctions APIs; email notifications; NDPA retention jobs.

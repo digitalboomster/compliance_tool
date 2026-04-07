@@ -1,13 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import { apiJson, clearToken, getToken, login as apiLogin } from '../api/client'
+import { apiJson } from '../api/client'
 
 type User = { id: string; email: string; name: string; role: string }
 
 type AuthContextValue = {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
-  logout: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -17,16 +15,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
-    if (!getToken()) {
-      setUser(null)
-      setLoading(false)
-      return
-    }
     try {
       const me = await apiJson<User>('/api/auth/me')
       setUser(me)
     } catch {
-      clearToken()
       setUser(null)
     } finally {
       setLoading(false)
@@ -37,19 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh()
   }, [refresh])
 
-  const login = useCallback(async (email: string, password: string) => {
-    const u = await apiLogin(email, password)
-    setUser(u)
-  }, [])
-
-  const logout = useCallback(() => {
-    clearToken()
-    setUser(null)
-  }, [])
-
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

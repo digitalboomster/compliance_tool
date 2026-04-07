@@ -7,38 +7,20 @@ function apiUrl(path: string): string {
   return base ? `${base}${p}` : p
 }
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
-}
-
-export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token)
-}
-
+/** Legacy token cleared on load (login removed). */
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
 }
 
 export type ApiError = { error: string; details?: unknown }
 
-function redirectLogin() {
-  clearToken()
-  if (!window.location.pathname.startsWith('/login')) {
-    window.location.href = '/login'
-  }
-}
-
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = getToken()
   const headers = new Headers(init.headers)
-  if (token) headers.set('Authorization', `Bearer ${token}`)
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
   const url = apiUrl(path)
-  const res = await fetch(url, { ...init, headers })
-  if (res.status === 401 && !url.includes('/api/auth/login')) redirectLogin()
-  return res
+  return fetch(url, { ...init, headers })
 }
 
 export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -48,15 +30,6 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
     throw new Error(err.error || `HTTP ${res.status}`)
   }
   return res.json() as Promise<T>
-}
-
-export async function login(email: string, password: string) {
-  const data = await apiJson<{ token: string; user: { id: string; email: string; name: string; role: string } }>(
-    '/api/auth/login',
-    { method: 'POST', body: JSON.stringify({ email, password }) },
-  )
-  setToken(data.token)
-  return data.user
 }
 
 export async function downloadCaseDocument(casePublicId: string, documentId: string, filename: string) {

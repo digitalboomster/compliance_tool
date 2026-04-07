@@ -1,5 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { AlertTriangle, FileSearch, LayoutGrid, LogOut, Settings } from 'lucide-react'
+import { NavLink, Outlet } from 'react-router-dom'
+import { AlertTriangle, FileSearch, LayoutGrid, Settings } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { GlobalCaseSearch } from '../components/GlobalCaseSearch'
 import { NotificationsMenu } from '../components/NotificationsMenu'
@@ -12,13 +12,7 @@ const nav = [
 ]
 
 export function AppShell() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-
-  function handleLogout() {
-    logout()
-    navigate('/login')
-  }
+  const { user } = useAuth()
 
   return (
     <div className="flex min-h-screen bg-surface text-on-surface">
@@ -80,14 +74,6 @@ export function AppShell() {
                 <p className="text-xs text-on-variant">{user?.role?.replace('_', ' ') ?? ''}</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-lg p-2 text-on-variant hover:bg-surface-low"
-              title="Sign out"
-            >
-              <LogOut className="h-5 w-5" strokeWidth={1.75} />
-            </button>
           </div>
         </header>
 
